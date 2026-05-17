@@ -1,6 +1,6 @@
 # 💬 Chat Social
 
-> Mini rede social com chat ao vivo, grupos e feed de posts. </br>
+> Mini rede social com chat ao vivo, grupos e feed de posts.
 > Deploy Link: https://chat-social-two.vercel.app/
 ---
 
