@@ -141,7 +141,7 @@ A aplicação é **mobile first**, com dois modos de navegação:
 
 ```bash
 # Clone o repositório
-git clone https://github.com/SEU_USUARIO/chat-social.git
+git clone https://github.com/ludslvaz/chat-social.git
 cd chat-social
 
 # Instale as dependências
