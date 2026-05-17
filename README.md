@@ -1,7 +1,7 @@
 # 💬 Chat Social
 
-> Mini rede social com chat ao vivo, grupos e feed de posts — desenvolvida como projeto final da disciplina de **Programação para Web**.
-
+> Mini rede social com chat ao vivo, grupos e feed de posts. </br>
+> Deploy Link: https://chat-social-two.vercel.app/
 ---
 
 ## 📸 Visão Geral
@@ -33,12 +33,13 @@ A aplicação combina funcionalidades de **chat em tempo real** com uma **mini r
 - Foto de perfil com upload direto
 - Bio editável
 - Contagem de posts
-- Edição de nome e bio
+- Visualizar perfil de outros usuários (`/users/[id]`)
 
 ### 🔐 Autenticação
 - Cadastro e login com e-mail e senha
 - Perfil criado automaticamente no cadastro
 - Sessão persistente via cookies
+- **Middleware de autenticação** no servidor — redireciona para login se não houver sessão ativa
 
 ---
 
@@ -64,9 +65,35 @@ O projeto utiliza o [shadcn/ui](https://ui.shadcn.com/) como biblioteca de compo
 | `Input` | Campos de texto e busca |
 | `Card` | Telas de login e cadastro |
 | `Avatar` + `AvatarImage` + `AvatarFallback` | Foto de perfil em todo o app |
-| `Badge` | Indicadores de grupo privado/público e "Ao vivo" |
+| `Badge` | Indicadores de grupo privado/público |
 | `ScrollArea` | Área de mensagens com scroll controlado |
 | `Separator` | Divisores visuais nos chats |
+
+---
+
+## 🏗️ Arquitetura — MVVM
+
+O projeto segue o padrão **MVVM (Model-View-ViewModel)** com separação clara de responsabilidades:
+
+| Camada | Onde fica | Responsabilidade |
+|---|---|---|
+| **View** | `app/_components/` | Renderiza a UI, recebe dados via props |
+| **ViewModel** | `app/hooks/` | Estado, lógica e chamadas ao banco |
+| **Model** | `app/lib/types.ts` + `app/lib/services/` | Tipos centrais e acesso ao Supabase |
+
+Cada página tem um **hook dedicado** (`useFeedPage`, `useGroupChatPage`, etc.) mantendo os `page.tsx` enxutos — com cerca de 20 linhas cada, apenas conectando View e ViewModel.
+
+---
+
+## 🌐 Contexto Global — AppProvider
+
+Um contexto global (`app/context/AppProvider.tsx`) centraliza o cliente Supabase e o usuário logado. Todos os componentes consomem via `useApp()`, evitando múltiplas instâncias do cliente espalhadas pelo código.
+
+---
+
+## 🛡️ Middleware de Autenticação
+
+Um `middleware.ts` na raiz intercepta todas as requisições no servidor antes de qualquer página carregar. Ele verifica a sessão via `@supabase/ssr` e redireciona automaticamente para `/auth/login` caso o usuário não esteja autenticado — garantindo proteção real no servidor, não apenas no client.
 
 ---
 
@@ -82,13 +109,13 @@ group_messages    — mensagens em tempo real dos grupos
 direct_messages   — mensagens privadas 1:1
 ```
 
-Todas as tabelas utilizam **Row Level Security (RLS)** para garantir que cada usuário só acesse o que tem permissão.
+Todas as tabelas utilizam **Row Level Security (RLS)** — as regras de acesso ficam diretamente no banco, substituindo controllers e middlewares manuais.
 
 ---
 
 ## ⚡ Tempo Real
 
-O Supabase Realtime é usado em três contextos:
+O Supabase Realtime é usado em três contextos via padrão **Observer**:
 
 - **Chat dos grupos** — novas mensagens aparecem instantaneamente
 - **Mensagens privadas** — conversa 1:1 ao vivo
@@ -99,31 +126,27 @@ O Supabase Realtime é usado em três contextos:
 ## 📁 Estrutura de Pastas
 
 ```
-src/
-├── app/
-│   ├── (auth)/
-│   │   ├── login/          → Tela de login
-│   │   └── register/       → Tela de cadastro
-│   └── (app)/
-│       ├── feed/           → Feed de posts
-│       ├── groups/         → Lista de grupos
-│       │   ├── new/        → Criar grupo
-│       │   └── [id]/       → Chat do grupo
-│       ├── messages/       → Lista de usuários
-│       │   └── [userId]/   → Mensagem privada
-│       └── profile/        → Perfil do usuário
-├── components/
-│   ├── feed/
-│   │   └── PostCard.tsx    → Card de post com curtida
-│   ├── layout/
-│   │   └── Sidebar.tsx     → Navegação lateral/inferior
-│   ├── profile/
-│   │   └── AvatarUpload.tsx → Upload de foto de perfil
-│   └── ui/                 → Componentes shadcn/ui
-└── lib/
-    └── supabase/
-        ├── client.ts       → Cliente browser
-        └── server.ts       → Cliente servidor
+app/
+├── _components/         → Componentes organizados por domínio
+│   ├── feed/            → PostCard e área de criação de post
+│   ├── groups/          → Componentes de grupos e chat
+│   ├── messages/        → Componentes de mensagens privadas
+│   └── profile/         → AvatarUpload e card de perfil
+├── context/
+│   └── AppProvider.tsx  → Contexto global (Supabase + usuário)
+├── hooks/               → ViewModels: useFeedPage, useGroupChatPage...
+├── lib/
+│   ├── types.ts         → Tipos centrais do domínio
+│   └── services/        → Funções de acesso ao Supabase por domínio
+├── auth/
+│   ├── login/           → Tela de login
+│   └── register/        → Tela de cadastro
+├── feed/                → Feed de posts
+├── groups/              → Lista de grupos e chat
+├── messages/            → Mensagens privadas
+├── profile/             → Perfil do usuário logado
+└── users/[id]/          → Perfil público de outros usuários
+middleware.ts            → Proteção de rotas no servidor
 ```
 
 ---
@@ -148,10 +171,7 @@ cd chat-social
 npm install
 
 # Configure as variáveis de ambiente
-cp .env.example .env.local
-# Preencha com suas chaves do Supabase
-
-# Rode o servidor de desenvolvimento
+# Crie um arquivo .env.local na raiz com as chaves do Supabase
 npm run dev
 ```
 
@@ -175,4 +195,3 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_anon_key_aqui
 **Ludmilla Silva Vaz**  
 Engenharia de Software — 5º Período  
 Disciplina: Programação para Web
-link deploy: https://chat-social-two.vercel.app/
