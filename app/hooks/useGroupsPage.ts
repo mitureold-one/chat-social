@@ -6,21 +6,21 @@ import type { GroupWithMeta } from '@/lib/services/groups.service'
 
 export function useGroupsPage() {
   const [groups, setGroups] = useState<GroupWithMeta[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
   const router = useRouter()
-  const { supabase } = useApp()
+  const { supabase, user, loading } = useApp()
 
   useEffect(() => {
-    async function load() {
-      const user = (supabase && (await supabase.auth.getUser()).data.user) ?? null
-      if (!user) { router.push('/auth/login'); return }
-      const data = await fetchGroups(supabase!, user.id)
-      setGroups(data)
-    }
-    load()
-  }, [])
+    if (loading) return
+    if (!user) { router.push('/auth/login'); return }
+    fetchGroups(supabase!, user.id)
+      .then(setGroups)
+      .finally(() => setPageLoading(false))
+  }, [loading, user])
 
   return {
     groups,
+    pageLoading: loading || pageLoading,
     onCreate: () => router.push('/groups/new'),
     onOpenGroup: (groupId: string) => router.push(`/groups/${groupId}`),
     setGroups,

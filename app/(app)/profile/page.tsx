@@ -3,9 +3,12 @@
 import { useProfilePage } from '@/hooks/useProfilePage'
 import { ProfileCard } from '@/_components/profile/ProfileCard'
 import { ProfilePosts } from '@/_components/profile/ProfilePosts'
+import { ProfileSkeleton } from '@/_components/ui/skeletons'
 
 export default function ProfilePage() {
   const profilePage = useProfilePage()
+
+  if (profilePage.pageLoading) return <ProfileSkeleton />
 
   return (
     <div className="h-full overflow-y-auto">
@@ -26,7 +29,6 @@ export default function ProfilePage() {
           onBioChange={profilePage.onBioChange}
           onAvatarUpload={url => profilePage.updateAvatar(url)}
         />
-
         <ProfilePosts
           posts={profilePage.posts}
           currentUserId={profilePage.profile?.id ?? ''}

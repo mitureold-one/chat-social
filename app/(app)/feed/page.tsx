@@ -3,9 +3,12 @@
 import { useFeedPage } from '@/hooks/useFeedPage'
 import { FeedComposer } from '@/_components/feed/FeedComposer'
 import { FeedList } from '@/_components/feed/FeedList'
+import { FeedSkeleton } from '@/_components/ui/skeletons'
 
 export default function FeedPage() {
   const feed = useFeedPage()
+
+  if (feed.pageLoading) return <FeedSkeleton />
 
   return (
     <div className="h-full overflow-y-auto">
@@ -20,7 +23,6 @@ export default function FeedPage() {
           onContentChange={feed.handleContentChange}
           onPost={feed.handlePost}
         />
-
         <FeedList
           posts={feed.posts}
           currentUserId={feed.profile?.id ?? ''}

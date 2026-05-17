@@ -22,36 +22,38 @@ export function useGroupChatPage() {
   const [password, setPassword] = useState('')
   const [pwError, setPwError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const { supabase, profile } = useApp()
+  const { supabase, profile, user, loading: authLoading } = useApp()
 
   useEffect(() => {
-    async function init() {
-      const user = (supabase && (await supabase.auth.getUser()).data.user) ?? null
-      if (!user) { router.push('/auth/login'); return }
+    if (authLoading) return
+    if (!user) { router.push('/auth/login'); return }
 
+    async function init() {
       const groupData = await fetchGroup(supabase!, id)
       setGroup(groupData)
 
-      const member = await checkMembership(supabase!, id, user.id)
+      const member = await checkMembership(supabase!, id, user!.id)
       if (member) {
         setIsMember(true)
         setMessages(await fetchGroupMessages(supabase!, id))
       }
+      setPageLoading(false)
     }
     init()
-  }, [id])
+  }, [authLoading, user, id])
 
   useEffect(() => {
-    if (!isMember) return
-    const channel = supabase!
+    if (!isMember || !supabase) return
+    const channel = supabase
       .channel(`group:${id}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'group_messages',
         filter: `group_id=eq.${id}`,
       }, async (payload) => {
-        const { data: sender } = await supabase!
+        const { data: sender } = await supabase
           .from('profiles')
           .select('username, full_name, avatar_url')
           .eq('id', payload.new.user_id)
@@ -59,8 +61,8 @@ export function useGroupChatPage() {
         setMessages(prev => [...prev, { ...(payload.new as GroupMessageWithProfile), profiles: sender }])
       })
       .subscribe()
-    return () => { supabase!.removeChannel(channel) }
-  }, [isMember, id])
+    return () => { supabase.removeChannel(channel) }
+  }, [isMember, id, supabase])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -106,6 +108,7 @@ export function useGroupChatPage() {
     password,
     pwError,
     loading,
+    pageLoading: authLoading || pageLoading,
     bottomRef,
     setPassword,
     setPwError,

@@ -24,10 +24,10 @@ export function useAuth() {
     return true
   }
 
-  async function signUp(fullName: string, email: string, password: string, redirect = '/feed') {
+  async function signUp(fullName: string, email: string, password: string) {
     setLoading(true)
     setError('')
-    const { error } = await supabase!.auth.signUp({
+    const { data, error } = await supabase!.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
@@ -37,7 +37,13 @@ export function useAuth() {
       setLoading(false)
       return false
     }
-    router.push(redirect)
+    // Se a sessão já existe, o Supabase confirmou automaticamente (e-mail confirm desabilitado)
+    // Se não, o usuário precisa confirmar o e-mail antes de logar
+    if (data.session) {
+      router.push('/feed')
+    } else {
+      setError('Verifique seu e-mail para confirmar o cadastro antes de entrar.')
+    }
     setLoading(false)
     return true
   }

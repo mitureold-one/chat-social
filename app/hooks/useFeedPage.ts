@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
 import { useApp } from '@/context/AppProvider'
 import { fetchPosts, createPost } from '@/lib/services/posts.service'
 import type { Post } from '@/lib/types'
@@ -13,25 +12,23 @@ export function useFeedPage() {
   const [content, setContent] = useState('')
   const [posting, setPosting] = useState(false)
   const [charCount, setCharCount] = useState(0)
-  const router = useRouter()
-  const { supabase, profile } = useApp()
+  const [pageLoading, setPageLoading] = useState(true)
+  const { supabase, profile, user, loading } = useApp()
 
-  async function loadPosts() {
-    const data = await fetchPosts(supabase!)
-    setPosts(data)
-  }
-
-  useEffect(() => {
-    async function init() {
-      const user = (supabase && (await supabase.auth.getUser()).data.user) ?? null
-      if (!user) { router.push('/auth/login'); return }
-      await loadPosts()
-    }
-    init()
-  }, [])
-
-  useEffect(() => {
+  const loadPosts = useCallback(async () => {
     if (!supabase) return
+    const data = await fetchPosts(supabase)
+    setPosts(data)
+  }, [supabase])
+
+  useEffect(() => {
+    if (loading) return
+    if (!user) return
+    loadPosts().finally(() => setPageLoading(false))
+  }, [loading, user, loadPosts])
+
+  useEffect(() => {
+    if (!supabase || !user) return
     const channel = supabase
       .channel('public:posts')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => {
@@ -39,7 +36,7 @@ export function useFeedPage() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [supabase, user, loadPosts])
 
   async function handlePost() {
     if (!content.trim() || !profile || content.length > MAX_CHARS) return
@@ -67,6 +64,7 @@ export function useFeedPage() {
     remaining,
     isOverLimit,
     initial,
+    pageLoading: loading || pageLoading,
     handleContentChange,
     handlePost,
     setPosts,

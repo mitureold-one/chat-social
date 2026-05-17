@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useApp } from '@/context/AppProvider'
 import { fetchUserPosts } from '@/lib/services/posts.service'
 import { fetchProfile, updateProfile } from '@/lib/services/profiles.service'
@@ -14,23 +13,24 @@ export function useProfilePage() {
   const [fullName, setFullName] = useState('')
   const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
-  const router = useRouter()
-  const { supabase, profile: ctxProfile, setProfile: setCtxProfile } = useApp()
+  const [pageLoading, setPageLoading] = useState(true)
+  const { supabase, profile: ctxProfile, setProfile: setCtxProfile, user, loading: authLoading } = useApp()
 
   useEffect(() => {
-    async function init() {
-      const user = (supabase && (await supabase.auth.getUser()).data.user) ?? null
-      if (!user) { router.push('/auth/login'); return }
+    if (authLoading) return
+    if (!user) return
 
-      const prof = ctxProfile ?? await fetchProfile(supabase!, user.id)
+    async function init() {
+      const prof = ctxProfile ?? await fetchProfile(supabase!, user!.id)
       setProfile(prof)
       setFullName(prof?.full_name || '')
       setBio(prof?.bio || '')
-
-      setPosts(await fetchUserPosts(supabase!, user.id))
+      const userPosts = await fetchUserPosts(supabase!, user!.id)
+      setPosts(userPosts)
+      setPageLoading(false)
     }
     init()
-  }, [])
+  }, [authLoading, user, ctxProfile])
 
   async function save() {
     if (!profile) return
@@ -44,7 +44,6 @@ export function useProfilePage() {
 
   async function logout() {
     await supabase!.auth.signOut()
-    router.push('/auth/login')
   }
 
   async function updateAvatar(url: string) {
@@ -61,6 +60,7 @@ export function useProfilePage() {
     fullName,
     bio,
     saving,
+    pageLoading: authLoading || pageLoading,
     initial: (profile?.full_name || profile?.username || '?')[0]?.toUpperCase(),
     startEditing: () => setEditing(true),
     cancelEditing: () => { setEditing(false); setFullName(profile?.full_name || ''); setBio(profile?.bio || '') },
