@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useApp } from '@/context/AppProvider'
 import { fetchUserPosts } from '@/lib/services/posts.service'
 import { fetchProfile, updateProfile } from '@/lib/services/profiles.service'
@@ -14,6 +15,7 @@ export function useProfilePage() {
   const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+  const router = useRouter()
   const { supabase, profile: ctxProfile, setProfile: setCtxProfile, user, loading: authLoading } = useApp()
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useProfilePage() {
 
   async function logout() {
     await supabase!.auth.signOut()
+    router.push('/auth/login')
   }
 
   async function updateAvatar(url: string) {
