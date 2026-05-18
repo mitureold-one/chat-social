@@ -20,16 +20,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    let mounted = true
+    setMounted(true)
+    let active = true
+
     async function init() {
       const { data } = await supabase.auth.getUser()
-      if (!mounted) return
+      if (!active) return
       setUser(data.user ?? null)
       if (data.user) {
-        const { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
-        if (!mounted) return
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single()
+        if (!active) return
         setProfile(prof ?? null)
       }
       setLoading(false)
@@ -40,7 +47,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const currentUser = session?.user ?? null
       setUser(currentUser)
       if (currentUser) {
-        const { data: prof } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single()
         setProfile(prof ?? null)
       } else {
         setProfile(null)
@@ -48,10 +59,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
-      mounted = false
-      if (listener) listener.subscription.unsubscribe()
+      active = false
+      listener?.subscription.unsubscribe()
     }
   }, [supabase])
+
+  // Não renderiza nada até hidratar no cliente
+  // Evita mismatch entre SSR (loading=true) e cliente (loading=true→false)
+  if (!mounted) {
+    return (
+      <AppContext.Provider value={{ supabase, user: null, profile: null, setProfile: () => {}, loading: true }}>
+        <div />
+      </AppContext.Provider>
+    )
+  }
 
   return (
     <AppContext.Provider value={{ supabase, user, profile, setProfile, loading }}>
