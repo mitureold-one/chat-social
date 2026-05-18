@@ -39,24 +39,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    let active = true
+  setMounted(true)
 
-    async function init() {
-      const { data } = await supabase.auth.getUser()
-      if (!active) return
-      setUser(data.user ?? null)
-      if (data.user) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single()
-        if (!active) return
-        setProfile(prof ?? null)
-      }
+  const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const currentUser = session?.user ?? null
+    setUser(currentUser)
+
+    if (currentUser) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single()
+      setProfile(prof ?? null)
+    } else {
+      setProfile(null)
+    }
+
+    if (event === 'INITIAL_SESSION') {
       setLoading(false)
     }
+  })
+
+  const timeout = setTimeout(() => setLoading(false), 5000)
+
+  return () => {
+    listener.subscription.unsubscribe()
+    clearTimeout(timeout)
+  }
+}, [supabase])
     init()
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
